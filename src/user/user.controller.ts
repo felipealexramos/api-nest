@@ -13,9 +13,12 @@ import {
 import { CreateUserDTO } from './dto/create-user.dto';
 import { UpdatePutUserDTO } from './dto/update-put-user.dto';
 import { UpdatePatchUserDTO } from './dto/update-patch-user.dto';
+import { UserService } from './user.service';
 
 @Controller('users')
 export class UserController {
+  constructor(private readonly userService: UserService) {}
+
   @Get()
   read() {
     return {
@@ -32,8 +35,8 @@ export class UserController {
   }
 
   @Post()
-  create(@Body() { name, email, password }: CreateUserDTO) {
-    return { user: {}, name, email, password };
+  create(@Body() data: CreateUserDTO) {
+    return this.userService.create(data);
   }
 
   @Put(':id')
