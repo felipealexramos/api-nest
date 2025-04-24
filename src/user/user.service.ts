@@ -66,12 +66,12 @@ export class UserService {
       throw new Error('ID is required');
     }
 
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.user.count({
       where: { id },
     });
 
     if (!user) {
-      throw new NotFoundException('Usuário não existe!');
+      throw new NotFoundException('User not found');
     }
 
     return this.prisma.user.delete({
