@@ -21,17 +21,12 @@ export class UserController {
 
   @Get()
   read() {
-    return {
-      users: [
-        { id: 1, name: 'John Doe' },
-        { id: 2, name: 'Jane Doe' },
-      ],
-    };
+    return this.userService.list();
   }
 
   @Get(':id')
   readOne(@Param() params) {
-    return { user: {}, params };
+    return this.userService.read(params.id);
   }
 
   @Post()
