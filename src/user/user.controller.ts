@@ -5,7 +5,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   Put,
@@ -25,8 +24,8 @@ export class UserController {
   }
 
   @Get(':id')
-  readOne(@Param() params) {
-    return this.userService.read(params.id);
+  readOne(@Param('id') id: string) {
+    return this.userService.read(id);
   }
 
   @Post()
@@ -35,26 +34,31 @@ export class UserController {
   }
 
   @Put(':id')
-  update(@Param() params, @Body() { name, email, password }: UpdatePutUserDTO) {
-    return {
-      method: 'PUT',
-      params,
+  update(
+    @Param('id') id: string,
+    @Body() { name, email, password }: UpdatePutUserDTO,
+  ) {
+    return this.userService.update(id, {
       name,
       email,
       password,
-    };
+    });
   }
 
   @Patch(':id')
   updatePartial(
-    @Param() params,
+    @Param('id') id: string,
     @Body() { name, email, password }: UpdatePatchUserDTO,
   ) {
-    return { user: {}, params, name, email, password };
+    return this.userService.updatePartial(id, {
+      name,
+      email,
+      password,
+    });
   }
 
   @Delete(':id')
-  delete(@Param('id', ParseIntPipe) id: number) {
+  delete(@Param('id') id: string) {
     return { id };
   }
 }
