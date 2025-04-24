@@ -36,12 +36,13 @@ export class UserController {
   @Put(':id')
   update(
     @Param('id') id: string,
-    @Body() { name, email, password }: UpdatePutUserDTO,
+    @Body() { name, email, password, birth_date }: UpdatePutUserDTO,
   ) {
     return this.userService.update(id, {
       name,
       email,
       password,
+      birth_date,
     });
   }
 
@@ -59,6 +60,6 @@ export class UserController {
 
   @Delete(':id')
   delete(@Param('id') id: string) {
-    return { id };
+    return this.userService.delete(id);
   }
 }

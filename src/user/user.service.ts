@@ -17,30 +17,20 @@ export class UserService {
     });
   }
 
-  async create({ email, name, password }: CreateUserDTO) {
+  async create({ email, name, password, birth_date }: CreateUserDTO) {
     return this.prisma.user.create({
       data: {
         email,
         name,
         password,
+        birth_date,
       },
     });
   }
 
-  async update(id: string, { email, name, password }: UpdatePutUserDTO) {
-    return this.prisma.user.update({
-      where: { id },
-      data: {
-        email,
-        name,
-        password,
-      },
-    });
-  }
-
-  async updatePartial(
+  async update(
     id: string,
-    { email, name, password }: UpdatePatchUserDTO,
+    { email, name, password, birth_date }: UpdatePutUserDTO,
   ) {
     return this.prisma.user.update({
       where: { id },
@@ -48,7 +38,26 @@ export class UserService {
         email,
         name,
         password,
+        birth_date: birth_date ? new Date(birth_date) : null,
       },
+    });
+  }
+
+  async updatePartial(
+    id: string,
+    { email, name, password, birth_date }: UpdatePatchUserDTO,
+  ) {
+    const data: Partial<UpdatePatchUserDTO> = {};
+    if (typeof email !== 'undefined') data.email = email;
+    if (typeof name !== 'undefined') data.name = name;
+    if (typeof password !== 'undefined') data.password = password;
+    if (typeof birth_date !== 'undefined')
+      data.birth_date = birth_date
+        ? new Date(birth_date).toISOString()
+        : undefined;
+    return this.prisma.user.update({
+      where: { id },
+      data,
     });
   }
 
