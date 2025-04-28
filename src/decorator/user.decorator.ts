@@ -1,22 +1,30 @@
-// import {
-//   createParamDecorator,
-//   ExecutionContext,
-//   NotFoundException,
-// } from '@nestjs/common';
+import {
+  createParamDecorator,
+  ExecutionContext,
+  NotFoundException,
+} from '@nestjs/common';
+import { User } from 'generated/prisma';
 
-// export const User = createParamDecorator(
-//   (filter: string | undefined, context: ExecutionContext) => {
-//     const request = context.switchToHttp().getRequest();
+export const UserDecorator = createParamDecorator(
+  (filter: string, context: ExecutionContext) => {
+    const request = context.switchToHttp().getRequest<{ user?: User }>();
 
-//     if (!request.user) {
-//       throw new NotFoundException(
-//         'Usuário não encontrado no Request. Use o AuthGuard para obter o usuário.',
-//       );
-//     }
-
-//     if (filter) {
-//       return request.user[filter];
-//     }
-//     return request.user;
-//   },
-// );
+    if (request.user) {
+      if (filter) {
+        if (filter in request.user) {
+          return request.user[filter as keyof User]; // Access filtered user property safely
+        } else {
+          throw new NotFoundException(
+            `Property '${filter}' not found on user.`,
+          );
+        }
+      } else {
+        return request.user;
+      }
+    } else {
+      throw new NotFoundException(
+        'Usuário não encontrado no Request. Use o AuthGuard para obter o usuário.',
+      );
+    }
+  },
+);

@@ -10,7 +10,7 @@ import { PrismaModule } from 'src/prisma/prisma.module';
     forwardRef(() => UserModule),
     PrismaModule,
     JwtModule.register({
-      secret: 'your-secret-key',
+      secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '1h' },
     }),
   ],
