@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   UnauthorizedException,
@@ -34,7 +35,18 @@ export class AuthService {
     const token = this.jwtService.sign(payload, options);
     return { accessToken: token };
   }
-  async checkToken() {}
+  checkToken(token: string) {
+    try {
+      const data: { id: string; name: string; email: string } =
+        this.jwtService.verify(token, {
+          audience: 'users',
+          issuer: 'login',
+        });
+      return data;
+    } catch (error) {
+      throw new BadRequestException(error);
+    }
+  }
 
   async login(email: string, password: string) {
     const user = await this.prisma.user.findFirst({
@@ -69,7 +81,6 @@ export class AuthService {
     }
 
     //TO DO: Enviar e-mail de recuperação
-
     return true;
   }
 
@@ -86,5 +97,14 @@ export class AuthService {
       },
     });
     return this.createToken(user);
+  }
+
+  isValidToken(token: string): boolean {
+    try {
+      this.checkToken(token);
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
