@@ -9,6 +9,7 @@ import { User } from 'generated/prisma';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AuthRegisterDTO } from './dto/auth-register.dto';
 import { UserService } from 'src/user/user.service';
+import * as bycript from 'bcrypt';
 
 @Injectable()
 export class AuthService {
@@ -52,7 +53,6 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: {
         email,
-        password,
       },
     });
 
@@ -60,6 +60,10 @@ export class AuthService {
       throw new UnauthorizedException('E-mail ou senha incorretos');
     }
 
+    const isValidPassword = await bycript.compare(password, user.password);
+    if (!isValidPassword) {
+      throw new UnauthorizedException('E-mail ou senha incorretos');
+    }
     return this.createToken(user);
   }
 

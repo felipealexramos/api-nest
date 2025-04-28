@@ -1,29 +1,32 @@
 import { CanActivate, Injectable, ExecutionContext } from '@nestjs/common';
-import { Request } from 'express';
 import { Reflector } from '@nestjs/core';
-import { ROLES_KEY } from 'src/decorator/roles.decorator';
-import { Role } from 'src/enums/role.enum';
+import { ROLES_KEY } from '../decorator/roles.decorator';
+import { Role } from '../enums/role.enum';
+
+interface User {
+  role: Role;
+}
 
 @Injectable()
 export class RoleGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
-  canActivate(context: ExecutionContext): Promise<boolean> {
-    const requiredRoles = this.reflector.getAllAndOverride<Role>(ROLES_KEY, [
+  canActivate(context: ExecutionContext) {
+    const requeridRoles = this.reflector.getAllAndOverride<Role[]>(ROLES_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
-    if (!requiredRoles) {
-      return Promise.resolve(true);
+    console.log({ requeridRoles });
+
+    if (!requeridRoles) {
+      return true;
     }
 
-    const { user } = context.switchToHttp().getRequest<Request>();
+    const { user } = context.switchToHttp().getRequest<{ user: User }>();
 
-    console.log('Required Roles:', requiredRoles, user);
+    const rolesFilted = requeridRoles.filter((role) => role === user.role);
 
-    const rolesFiltered = requiredRoles.filter(role => role === user.rule);
-
-    return Promise.resolve(rolesFiltered.length > 0);
+    return rolesFilted.length > 0;
   }
 }

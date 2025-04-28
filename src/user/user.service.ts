@@ -3,6 +3,7 @@ import { CreateUserDTO } from './dto/create-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdatePutUserDTO } from './dto/update-put-user.dto';
 import { UpdatePatchUserDTO } from './dto/update-patch-user.dto';
+import * as bycript from 'bcrypt';
 
 @Injectable()
 export class UserService {
@@ -18,12 +19,20 @@ export class UserService {
   }
 
   async create(data: CreateUserDTO) {
+    const salt = await bycript.genSalt();
+
+    data.password = await bycript.hash(data.password, salt);
+
     return this.prisma.user.create({
       data,
     });
   }
 
   async update(id: string, data: UpdatePutUserDTO) {
+    const salt = await bycript.genSalt();
+
+    data.password = await bycript.hash(data.password, salt);
+
     return this.prisma.user.update({
       where: { id },
       data,
@@ -43,6 +52,11 @@ export class UserService {
     }
     if (typeof role !== 'undefined') {
       data.role = role;
+    }
+
+    if (password) {
+      const salt = await bycript.genSalt();
+      data.password = await bycript.hash(password, salt);
     }
     return this.prisma.user.update({
       where: { id },
