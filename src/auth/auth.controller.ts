@@ -14,12 +14,14 @@ import { AuthService } from './auth.service';
 import { UserDecorator } from '../decorator/user.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from 'src/guards/auth.guard';
-import { writeFile } from 'fs';
-import { join } from 'path';
+import { FileService } from 'src/file/file.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly fileService: FileService,
+  ) {}
 
   @Post('login')
   async login(@Body() { email, password }: AuthLoginDTO) {
@@ -48,16 +50,9 @@ export class AuthController {
     @UserDecorator() user: { id: string },
     @UploadedFile() photo: Express.Multer.File,
   ) {
-    const filePath = join(
-      __dirname,
-      '..',
-      '..',
-      'storage',
-      'photos',
-      `photo-${user.id}.png`,
-    );
-    await import('fs/promises').then((fs) =>
-      fs.writeFile(filePath, photo.buffer),
+    const filePath = await this.fileService.saveUserPhoto(
+      user.id,
+      photo.buffer,
     );
     return { message: 'Photo uploaded successfully', filePath };
   }
