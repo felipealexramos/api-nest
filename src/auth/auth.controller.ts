@@ -3,6 +3,7 @@ import {
   Controller,
   Post,
   UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
@@ -12,7 +13,11 @@ import { AuthForgetDTO } from './dto/auth-forget.dto';
 import { AuthResetDTO } from './dto/auth-reset.dto';
 import { AuthService } from './auth.service';
 import { UserDecorator } from '../decorator/user.decorator';
-import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+  FilesInterceptor,
+} from '@nestjs/platform-express';
 import { AuthGuard } from 'src/guards/auth.guard';
 import { FileService } from 'src/file/file.service';
 
@@ -50,10 +55,44 @@ export class AuthController {
     @UserDecorator() user: { id: string },
     @UploadedFile() photo: Express.Multer.File,
   ) {
-    const filePath = await this.fileService.saveUserPhoto(
-      user.id,
-      photo.buffer,
-    );
+    const filePath = await this.fileService.upload(user.id, photo.buffer);
     return { message: 'Photo uploaded successfully', filePath };
+  }
+
+  @UseGuards(AuthGuard)
+  @UseInterceptors(FilesInterceptor('files')) // Note: Use `FilesInterceptor` for multiple files
+  @Post('files')
+  async uploadFiles(
+    @UserDecorator() user: { id: string },
+    @UploadedFiles() files: Express.Multer.File[], // Use `@UploadedFiles` for multiple files
+  ) {
+    const filePaths = await this.fileService.uploadFiles(user.id, files); // Pass the `files` array directly
+    return { message: 'Files uploaded successfully', filePaths };
+  }
+
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      {
+        name: 'photo',
+        maxCount: 1,
+      },
+      {
+        name: 'documents',
+        maxCount: 10,
+      },
+    ]),
+  )
+  @UseGuards(AuthGuard)
+  @Post('files-fields')
+  async uploadFilesFields(
+    @UserDecorator() user: { id: string },
+    @UploadedFiles()
+    files: { photo: Express.Multer.File[]; documents: Express.Multer.File[] },
+  ) {
+    const result = await this.fileService.uploadFilesWithFields(user.id, files);
+    return {
+      message: 'Files uploaded successfully',
+      ...result,
+    };
   }
 }
