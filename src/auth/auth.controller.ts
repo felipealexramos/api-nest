@@ -1,6 +1,9 @@
 import {
   Body,
   Controller,
+  FileTypeValidator,
+  MaxFileSizeValidator,
+  ParseFilePipe,
   Post,
   UploadedFile,
   UploadedFiles,
@@ -53,7 +56,19 @@ export class AuthController {
   @Post('photo')
   async uploadPhoto(
     @UserDecorator() user: { id: string },
-    @UploadedFile() photo: Express.Multer.File,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new FileTypeValidator({
+            fileType: 'image/png',
+          }),
+          new MaxFileSizeValidator({
+            maxSize: 1024 * 1024, // 1MB
+          }),
+        ],
+      }),
+    )
+    photo: Express.Multer.File,
   ) {
     const filePath = await this.fileService.upload(user.id, photo.buffer);
     return { message: 'Photo uploaded successfully', filePath };

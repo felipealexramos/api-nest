@@ -23,7 +23,6 @@ import { AuthGuard } from 'src/guards/auth.guard';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Roles(Role.Admin)
   @Get()
   read() {
     return this.userService.list();

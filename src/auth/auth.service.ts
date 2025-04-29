@@ -10,6 +10,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { AuthRegisterDTO } from './dto/auth-register.dto';
 import { UserService } from 'src/user/user.service';
 import * as bycript from 'bcrypt';
+import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
 export class AuthService {
@@ -17,6 +18,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly userService: UserService,
+    private readonly mailService: MailerService,
   ) {}
 
   createToken(user: User): { accessToken: string } {
@@ -36,7 +38,7 @@ export class AuthService {
     const token = this.jwtService.sign(payload, options);
     return { accessToken: token };
   }
-  checkToken(token: string) {
+  verify(token: string) {
     try {
       const data: { id: string; name: string; email: string } =
         this.jwtService.verify(token, {
@@ -84,28 +86,75 @@ export class AuthService {
       throw new ForbiddenException('E-mail está incorreto.');
     }
 
-    //TO DO: Enviar e-mail de recuperação
-    return true;
+    const token = this.jwtService.sign(
+      {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      },
+      {
+        audience: 'users',
+        issuer: 'forget',
+        expiresIn: '1h',
+      },
+    );
+
+    await this.mailService.sendMail({
+      subject: 'Recuperação de senha',
+      to: email,
+      template: 'forget',
+      context: {
+        // Passa as variáveis para o template
+        name: user.name,
+        token: this.createToken(user).accessToken,
+      },
+    });
+
+    return { success: true };
   }
 
   async reset(password: string, token: string) {
-    //TO DO: Validar o token
+    try {
+      const data = this.verify(token);
 
-    const id = '0';
-    const user = await this.prisma.user.update({
-      where: {
-        id,
-      },
-      data: {
-        password,
-      },
-    });
-    return this.createToken(user);
+      const user = await this.userService.read(data.id);
+
+      if (!user) {
+        throw new ForbiddenException('Usuário não encontrado.');
+      }
+
+      const salt = await bycript.genSalt(10);
+      password = await bycript.hash(password, salt);
+
+      await this.prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          password,
+        },
+      });
+
+      // Enviar e-mail de confirmação
+      await this.mailService.sendMail({
+        subject: 'Senha alterada com sucesso',
+        to: user.email,
+        template: 'reset',
+        context: {
+          // Passa as variáveis para o template
+          name: user.name,
+        },
+      });
+
+      return this.createToken(user);
+    } catch (e) {
+      throw new BadRequestException(e);
+    }
   }
 
   isValidToken(token: string): boolean {
     try {
-      this.checkToken(token);
+      this.verify(token);
       return true;
     } catch {
       return false;
