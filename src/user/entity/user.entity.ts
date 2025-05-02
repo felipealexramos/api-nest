@@ -13,7 +13,7 @@ export class UserEntity {
   @PrimaryGeneratedColumn({
     unsigned: true,
   })
-  id: string;
+  id: number;
 
   @Column({
     length: 83,

@@ -5,7 +5,6 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
-import { User } from 'generated/prisma';
 import { AuthRegisterDTO } from './dto/auth-register.dto';
 import { UserService } from 'src/user/user.service';
 import * as bycript from 'bcrypt';
@@ -24,7 +23,7 @@ export class AuthService {
     private usersRepository: Repository<UserEntity>,
   ) {}
 
-  createToken(user: User): { accessToken: string } {
+  createToken(user: UserEntity): { accessToken: string } {
     const payload = {
       id: user.id,
       name: user.name,
@@ -43,7 +42,7 @@ export class AuthService {
   }
   verify(token: string, expectedIssuer: string) {
     try {
-      const data: { id: string; name: string; email: string } =
+      const data: { id: number; name: string; email: string } =
         this.jwtService.verify(token, {
           audience: 'users',
           issuer: expectedIssuer, // Verifica o issuer esperado

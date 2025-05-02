@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUserDTO } from './dto/create-user.dto';
 import { UpdatePutUserDTO } from './dto/update-put-user.dto';
 import { UpdatePatchUserDTO } from './dto/update-patch-user.dto';
@@ -17,7 +21,7 @@ export class UserService {
     return this.usersRepository.find();
   }
 
-  async read(id: string) {
+  async read(id: number) {
     if (!id) {
       throw new Error('ID is required');
     }
@@ -34,15 +38,32 @@ export class UserService {
   }
 
   async create(data: CreateUserDTO) {
-    const salt = await bycript.genSalt();
+    try {
+      const userExists = await this.usersRepository.findOneBy({
+        email: data.email,
+      });
 
-    data.password = await bycript.hash(data.password, salt);
+      if (userExists) {
+        throw new BadRequestException('Este e-mail já está em uso');
+      }
 
-    const user = this.usersRepository.create(data);
-    return this.usersRepository.save(user);
+      const salt = await bycript.genSalt();
+      data.password = await bycript.hash(data.password, salt);
+
+      const user = this.usersRepository.create(data);
+      return this.usersRepository.save(user);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error; // Repassa o erro original, como o de e-mail já em uso
+      }
+      throw new BadRequestException(
+        'Erro ao criar usuário',
+        error instanceof Error ? error.message : String(error),
+      );
+    }
   }
 
-  async update(id: string, data: UpdatePutUserDTO) {
+  async update(id: number, data: UpdatePutUserDTO) {
     const salt = await bycript.genSalt();
 
     data.password = await bycript.hash(data.password, salt);
@@ -57,7 +78,7 @@ export class UserService {
   }
 
   async updatePartial(
-    id: string,
+    id: number,
     { email, name, password, birth_date, role }: UpdatePatchUserDTO,
   ) {
     const data: Partial<UpdatePatchUserDTO> = {};
@@ -84,20 +105,25 @@ export class UserService {
     return this.usersRepository.save({ ...user, ...data });
   }
 
-  async delete(id: string) {
+  async delete(id: number) {
     if (!id) {
-      throw new Error('ID is required');
+      throw new BadRequestException('ID is required');
     }
 
-    const user = await this.usersRepository.findOne({
-      where: { id },
-    });
-    if (!user) {
+    await this.exists(id);
+
+    const result = await this.usersRepository.delete(id);
+    if (result.affected === 0) {
       throw new NotFoundException('User not found');
     }
-    await this.usersRepository.delete(id);
-    return {
-      message: 'User deleted successfully',
-    };
+
+    return { message: 'User deleted successfully' };
+  }
+
+  async exists(id: number): Promise<void> {
+    const userExists = await this.usersRepository.findOneBy({ id });
+    if (!userExists) {
+      throw new NotFoundException('User not found');
+    }
   }
 }

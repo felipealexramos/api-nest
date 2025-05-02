@@ -23,6 +23,7 @@ import { AuthGuard } from 'src/guards/auth.guard';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  @Roles(Role.Admin)
   @Get()
   read() {
     return this.userService.list();
@@ -30,10 +31,11 @@ export class UserController {
 
   @Roles(Role.Admin)
   @Get(':id')
-  readOne(@Param('id') id: string) {
+  readOne(@Param('id') id: number) {
     return this.userService.read(id);
   }
 
+  @Roles(Role.Admin)
   @Post()
   create(@Body() data: CreateUserDTO) {
     return this.userService.create(data);
@@ -42,7 +44,7 @@ export class UserController {
   @Roles(Role.Admin)
   @Put(':id')
   update(
-    @Param('id') id: string,
+    @Param('id') id: number,
     @Body() { name, email, password, birth_date, role }: UpdatePutUserDTO,
   ) {
     return this.userService.update(id, {
@@ -57,7 +59,7 @@ export class UserController {
   @Roles(Role.Admin)
   @Patch(':id')
   updatePartial(
-    @Param('id') id: string,
+    @Param('id') id: number,
     @Body() { name, email, password }: UpdatePatchUserDTO,
   ) {
     return this.userService.updatePartial(id, {
@@ -69,7 +71,7 @@ export class UserController {
 
   @Roles(Role.Admin)
   @Delete(':id')
-  delete(@Param('id') id: string) {
+  delete(@Param('id') id: number) {
     return this.userService.delete(id);
   }
 }
