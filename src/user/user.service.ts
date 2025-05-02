@@ -1,21 +1,36 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateUserDTO } from './dto/create-user.dto';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdatePutUserDTO } from './dto/update-put-user.dto';
 import { UpdatePatchUserDTO } from './dto/update-patch-user.dto';
 import * as bycript from 'bcrypt';
+import { Repository } from 'typeorm';
+import { UserEntity } from './entity/user.entity';
+import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class UserService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @InjectRepository(UserEntity)
+    private usersRepository: Repository<UserEntity>,
+  ) {}
   async list() {
-    return this.prisma.user.findMany();
+    return this.usersRepository.find();
   }
 
   async read(id: string) {
-    return this.prisma.user.findUnique({
-      where: { id },
+    if (!id) {
+      throw new Error('ID is required');
+    }
+
+    const user = await this.usersRepository.findOneBy({
+      id,
     });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
   }
 
   async create(data: CreateUserDTO) {
@@ -23,9 +38,8 @@ export class UserService {
 
     data.password = await bycript.hash(data.password, salt);
 
-    return this.prisma.user.create({
-      data,
-    });
+    const user = this.usersRepository.create(data);
+    return this.usersRepository.save(user);
   }
 
   async update(id: string, data: UpdatePutUserDTO) {
@@ -33,10 +47,13 @@ export class UserService {
 
     data.password = await bycript.hash(data.password, salt);
 
-    return this.prisma.user.update({
+    const user = await this.usersRepository.findOne({
       where: { id },
-      data,
     });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return this.usersRepository.save({ ...user, ...data });
   }
 
   async updatePartial(
@@ -58,10 +75,13 @@ export class UserService {
       const salt = await bycript.genSalt();
       data.password = await bycript.hash(password, salt);
     }
-    return this.prisma.user.update({
+    const user = await this.usersRepository.findOne({
       where: { id },
-      data,
     });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return this.usersRepository.save({ ...user, ...data });
   }
 
   async delete(id: string) {
@@ -69,16 +89,15 @@ export class UserService {
       throw new Error('ID is required');
     }
 
-    const user = await this.prisma.user.count({
+    const user = await this.usersRepository.findOne({
       where: { id },
     });
-
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
-    return this.prisma.user.delete({
-      where: { id },
-    });
+    await this.usersRepository.delete(id);
+    return {
+      message: 'User deleted successfully',
+    };
   }
 }

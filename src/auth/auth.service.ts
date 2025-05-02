@@ -6,19 +6,22 @@ import {
 } from '@nestjs/common';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { User } from 'generated/prisma';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { AuthRegisterDTO } from './dto/auth-register.dto';
 import { UserService } from 'src/user/user.service';
 import * as bycript from 'bcrypt';
 import { MailerService } from '@nestjs-modules/mailer';
+import { InjectRepository } from '@nestjs/typeorm';
+import { UserEntity } from 'src/user/entity/user.entity';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly prisma: PrismaService,
     private readonly userService: UserService,
     private readonly mailService: MailerService,
+    @InjectRepository(UserEntity)
+    private usersRepository: Repository<UserEntity>,
   ) {}
 
   createToken(user: User): { accessToken: string } {
@@ -38,12 +41,12 @@ export class AuthService {
     const token = this.jwtService.sign(payload, options);
     return { accessToken: token };
   }
-  verify(token: string) {
+  verify(token: string, expectedIssuer: string) {
     try {
       const data: { id: string; name: string; email: string } =
         this.jwtService.verify(token, {
           audience: 'users',
-          issuer: 'login',
+          issuer: expectedIssuer, // Verifica o issuer esperado
         });
       return data;
     } catch (error) {
@@ -52,20 +55,20 @@ export class AuthService {
   }
 
   async login(email: string, password: string) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        email,
-      },
+    const user = await this.usersRepository.findOneBy({
+      email,
     });
 
+    console.log(user);
     if (!user) {
-      throw new UnauthorizedException('E-mail ou senha incorretos');
+      throw new UnauthorizedException('Usuário não existe. Faça cadastro.');
+    }
+    const isValidPassword = await bycript.compare(password, user.password);
+    console.log(isValidPassword);
+    if (!isValidPassword) {
+      throw new UnauthorizedException('E-mail ou senha incorretos.');
     }
 
-    const isValidPassword = await bycript.compare(password, user.password);
-    if (!isValidPassword) {
-      throw new UnauthorizedException('E-mail ou senha incorretos');
-    }
     return this.createToken(user);
   }
 
@@ -76,10 +79,8 @@ export class AuthService {
   }
 
   async forget(email: string) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        email,
-      },
+    const user = await this.usersRepository.findOneBy({
+      email,
     });
 
     if (!user) {
@@ -99,23 +100,12 @@ export class AuthService {
       },
     );
 
-    await this.mailService.sendMail({
-      subject: 'Recuperação de senha',
-      to: email,
-      template: 'forget',
-      context: {
-        // Passa as variáveis para o template
-        name: user.name,
-        token: this.createToken(user).accessToken,
-      },
-    });
-
-    return { success: true };
+    return { success: true, token };
   }
 
   async reset(password: string, token: string) {
     try {
-      const data = this.verify(token);
+      const data = this.verify(token, 'forget'); // Passa o issuer correto
 
       const user = await this.userService.read(data.id);
 
@@ -126,25 +116,7 @@ export class AuthService {
       const salt = await bycript.genSalt(10);
       password = await bycript.hash(password, salt);
 
-      await this.prisma.user.update({
-        where: {
-          id: user.id,
-        },
-        data: {
-          password,
-        },
-      });
-
-      // Enviar e-mail de confirmação
-      await this.mailService.sendMail({
-        subject: 'Senha alterada com sucesso',
-        to: user.email,
-        template: 'reset',
-        context: {
-          // Passa as variáveis para o template
-          name: user.name,
-        },
-      });
+      await this.usersRepository.update({ id: user.id }, { password });
 
       return this.createToken(user);
     } catch (e) {
@@ -154,7 +126,7 @@ export class AuthService {
 
   isValidToken(token: string): boolean {
     try {
-      this.verify(token);
+      this.verify(token, 'users'); // Verifica o issuer correto
       return true;
     } catch {
       return false;
